@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutor Virtual Físico (TVF)</title>
+    <!-- MathJax para la renderización de fórmulas matemáticas -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <!-- Marked.js para renderizar Markdown a HTML -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #1a365d;
+            --secondary-color: #2b6cb0;
+            --bg-color: #f7fafc;
+            --chat-bg: #ffffff;
+            --user-msg-bg: #e2e8f0;
+            --tvf-msg-bg: #ebf8ff;
+            --border-color: #cbd5e0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        header p {
+            margin: 5px 0 0 0;
+            font-size: 0.9rem;
+            opacity: 0.85;
+        }
+
+        .api-key-container {
+            background-color: #fffaf0;
+            border-bottom: 1px solid #feebc8;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+        }
+
+        .api-key-container input {
+            flex: 1;
+            padding: 6px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 8px;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+
+        .message.tvf {
+            background-color: var(--tvf-msg-bg);
+            align-self: flex-start;
+            border-left: 4px solid var(--secondary-color);
+        }
+
+        .message.user {
+            background-color: var(--user-msg-bg);
+            align-self: flex-end;
+            border-right: 4px solid var(--primary-color);
+        }
+
+        .input-container {
+            padding: 15px 20px;
+            background-color: white;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-container textarea {
+            flex: 1;
+            resize: none;
+            height: 40px;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 1rem;
+        }
+
+        .input-container button {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 0 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        .input-container button:hover {
+            background-color: var(--primary-color);
+        }
+
+        .loading {
+            font-style: italic;
+            color: #718096;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Tutor Virtual Físico (TVF)</h1>
+        <p>Aprende Física Preuniversitaria mediante el método socrático</p>
+    </header>
+
+    <div class="api-key-container">
+        <label for="apiKey"><strong>Clave API de Gemini:</strong></label>
+        <input type="password" id="apiKey" placeholder="Ingresa tu GEMINI_API_KEY aquí para activar el tutor">
+    </div>
+
+    <div class="chat-container" id="chatContainer">
+        <div class="message tvf">
+            ¡Hola! Soy tu Tutor Virtual Físico (TVF). Estoy listo para ayudarte con los temas de Física. Escribe uno de estos temas de Física: 
+            <strong>Tema 12: Trabajo-Potencia</strong>; <strong>Tema 13: Energía Mecánica</strong>; <strong>Tema 14: Temperatura</strong>; <strong>Tema 15: Dilatación</strong>; <strong>Tema 16: Calorimetría</strong>; que deseas resolver aquí debajo para comenzar.
+        </div>
+    </div>
+
+    <div class="input-container">
+        <textarea id="userInput" placeholder="Escribe tu consulta o respuesta aquí..."></textarea>
+        <button id="sendBtn">Enviar</button>
+    </div>
+
+    <script>
+        const SYSTEM_INSTRUCTION = `Eres el 'Tutor Virtual Físico (TVF)', un agente educativo especializado en la enseñanza de Física para estudiantes del nivel preuniversitario. Tu enfoque se basa en el andamiaje adaptativo (scaffolding) y el método socrático, siguiendo principios de Vygotsky, Ausubel y Kosslyn.
+
+Temas cubiertos:
+Tema 12: Trabajo-Potencia
+Tema 13: Energía Mecánica
+Tema 14: Temperatura
+Tema 15: Dilatación
+Tema 16: Calorimetría
+
+Comportamiento y Reglas de Interacción:
+1) Fase 1: Inicio de Sesión
+Saluda profesionalmente y pide seleccionar un tema.
+
+2) Fase 2: Generación del Problema
+Cuando el estudiante elija un tema, genera o presenta un problema preuniversitario representativo de ese tema.
+NUNCA incluyas la solución ni la respuesta final en el planteamiento. Solo envía el ejercicio y espera la primera intervención del estudiante.
+
+3) Fase 3: Secuencia Socrática Controlada
+Tras la respuesta del estudiante, actúa como guía socrático. Envía preguntas heurísticas paso a paso (una pregunta por turno):
+a) Activación de conocimientos previos.
+b) Identificación de elementos clave.
+c) Representación / Formulación.
+d) Validación del razonamiento.
+e) Generalización breve.
+
+4) Fase 4: Motor Adaptativo y Retroalimentación
+- Si la respuesta es correcta: Refuerza el razonamiento y avanza.
+- Si es incorrecta: NUNCA des la respuesta. Proporciona primero una pista conceptual, luego procedimental y finalmente un ejemplo análogo.
+- Si no responde: Da una pista progresiva.
+
+5) Metacognición y Cierre:
+Tras llegar a la solución correcta, pregunta si desea continuar en el tema o elegir otro.
+
+RESTRICCIONES:
+- NUNCA resuelvas el ejercicio directamente.
+- Tono empático, motivador, paciente y claro.`;
+
+        let chatHistory = [];
+
+        const chatContainer = document.getElementById('chatContainer');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const apiKeyInput = document.getElementById('apiKey');
+
+        function appendMessage(sender, text) {
+            const msgDiv = document.createElement('div');
+            msgDiv.classList.add('message', sender);
+            msgDiv.innerHTML = marked.parse(text);
+            chatContainer.appendChild(msgDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            if (window.MathJax) {
+                MathJax.typesetPromise([msgDiv]);
+            }
+        }
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            const apiKey = apiKeyInput.value.trim();
+
+            if (!text) return;
+
+            if (!apiKey) {
+                alert("Por favor, ingresa una clave de API de Gemini válida en la barra superior.");
+                return;
+            }
+
+            appendMessage('user', text);
+            userInput.value = '';
+
+            chatHistory.push({ role: 'user', parts: [{ text: text }] });
+
+            const loadingDiv = document.createElement('div');
+            loadingDiv.classList.add('message', 'tvf', 'loading');
+            loadingDiv.innerText = "TVF está pensando...";
+            chatContainer.appendChild(loadingDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
+                        contents: chatHistory
+                    })
+                });
+
+                const data = await response.json();
+                chatContainer.removeChild(loadingDiv);
+
+                if (data.candidates && data.candidates[0].content) {
+                    const tvfReply = data.candidates[0].content.parts[0].text;
+                    appendMessage('tvf', tvfReply);
+                    chatHistory.push({ role: 'model', parts: [{ text: tvfReply }] });
+                } else {
+                    appendMessage('tvf', "Hubo un error al procesar tu respuesta. Revisa tu clave de API.");
+                }
+            } catch (error) {
+                chatContainer.removeChild(loadingDiv);
+                appendMessage('tvf', "Error de conexión con la API de Gemini.");
+                console.error(error);
+            }
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
